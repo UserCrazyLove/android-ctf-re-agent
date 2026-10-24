@@ -40,11 +40,11 @@
 ### 1.2 克隆
 
 ```bash
-# HTTPS（推荐，最省事）
-git clone https://github.com/<用户名>/<仓库名>.git android-ctf-re
+# HTTPS (recommended)
+git clone https://github.com/UserCrazyLove/android-ctf-re-agent.git
 
-# 或者先 fork 再 clone 自己的
-git clone https://github.com/<你的用户名>/<仓库名>.git android-ctf-re
+# or fork first
+git clone https://github.com/<your-user>/android-ctf-re-agent.git
 ```
 
 没装 git：
@@ -72,7 +72,8 @@ ls
 必须看到：
 
 ```
-README.md  README.zh-CN.md  GETTING-STARTED.md  LICENSE  CHANGELOG.md
+README.md  README.en.md  GETTING-STARTED.md  GETTING-STARTED.zh-CN.md
+LICENSE  CHANGELOG.md  requirements.md  .gitignore  .gitattributes
 prompts/  workspace/  docs/  examples/
 ```
 
@@ -428,7 +429,7 @@ foreach ($c in 'frida','jadx','apktool','apkid','r2','apksigner','adb','python')
 ```bash
 # 把项目里的脚手架复制到你的工作区
 mkdir -p <WORKSPACE>
-cp -r android-ctf-re/workspace/* <WORKSPACE>/
+cp -r android-ctf-re-agent/workspace/* <WORKSPACE>/
 
 # 给脚本执行权限（Linux / macOS / git-bash）
 chmod +x <WORKSPACE>/new_case.sh

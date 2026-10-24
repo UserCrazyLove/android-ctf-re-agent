@@ -1,0 +1,40 @@
+# 工作区里的案子目录不入库
+/workspace/*/
+!/workspace/scripts/
+!/workspace/_report-template.md
+!/workspace/_crackme-template.md
+!/workspace/new_case.sh
+!/workspace/new_case.ps1
+
+# 本地配置（含个人路径 / 密码）
+prompts/env.local.md
+*.local.md
+
+# 逆向产物
+*.apk
+*.dex
+*.jar
+*.so
+!workspace/scripts/*.sh
+apktool/
+sources/
+resources/
+build/
+dump/
+native/
+raw/
+test/*.log
+*.log
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/

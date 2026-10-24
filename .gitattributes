@@ -1,0 +1,10 @@
+# 统一换行符，避免 Windows 下脚本被转成 CRLF 后跑不了
+* text=auto
+
+# 脚本必须 LF
+*.sh   text eol=lf
+*.ps1  text eol=crlf
+
+# 文档 LF 即可
+*.md   text eol=lf
+LICENSE text eol=lf

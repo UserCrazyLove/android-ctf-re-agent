@@ -13,6 +13,7 @@
 | apktool | 3.x | 解包回编 |
 | jadx | 1.5.x（CLI） | 反编译 Java |
 | dex-tools | 2.4.x | dex ↔ smali |
+| DexSQL | 0.1.1 | SQL 直查 dex/apk，定位首选（不做 Java 反编译） |
 | Android SDK | platform-tools + build-tools + platforms | adb / aapt2 / apksigner / zipalign |
 
 ## Python 包

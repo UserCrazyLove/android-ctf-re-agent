@@ -199,6 +199,29 @@ CrackMe 破解时最大的一类翻车是"改完加载不了"。这份表按类�
 
 ## 附：常用搜索命令
 
+**首选 dexsql（不用解包，毫秒级，还能看调用关系）**
+
+```bash
+cd <TOOLROOT>/DexSQL
+
+# 签名 / 完整性检测方法
+dexsql.exe query --input app.apk --sql "SELECT class_descriptor, name FROM methods WHERE lower(name) LIKE '%signature%' OR lower(name) LIKE '%integrity%' OR lower(name) LIKE '%tamper%' LIMIT 50"
+
+# 反调试 / 反注入 / 反 root
+dexsql.exe query --input app.apk --sql "SELECT class_descriptor, name FROM methods WHERE lower(name) LIKE '%debug%' OR lower(name) LIKE '%inject%' OR lower(name) LIKE '%root%' OR lower(name) LIKE '%emulator%' LIMIT 50"
+
+# 字符串池里找特征串
+dexsql.exe query --input app.apk --sql "SELECT value FROM strings WHERE value LIKE '%frida%' OR value LIKE '%xposed%' OR value LIKE '%magisk%' OR value LIKE '%su%' LIMIT 50"
+
+# 谁调用了这些检测函数
+dexsql.exe query --input app.apk --sql "SELECT method_class, method_name, callee_name FROM method_calls WHERE callee_name LIKE '%check%' OR callee_name LIKE '%verify%' LIMIT 100"
+
+# 试用期 / 时间判定
+dexsql.exe query --input app.apk --sql "SELECT class_descriptor, name FROM methods WHERE lower(name) LIKE '%expire%' OR lower(name) LIKE '%trial%' OR lower(name) LIKE '%remain%' LIMIT 50"
+```
+
+**解包后用 rg 精查（针对具体文件）**
+
 ```bash
 # 签名
 rg -n "getPackageInfo|GET_SIGNATURES|GET_SIGNING_CERTIFICATES|signatures" sources/

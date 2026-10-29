@@ -108,6 +108,7 @@ frida / objection / mitmproxy / r0capture 是**要连设备才能用的工具**�
 | 解包回编 | `apktool`（3.0.3） |
 | 反编译 Java | `jadx`（1.5.6，**只用 CLI**；不要用 jadx-gui） |
 | dex↔smali | `d2j-baksmali.bat` / `d2j-smali.bat` / `d2j-dex2jar.bat` |
+| **dex SQL 直查（定位首选）** | `<TOOLROOT>/DexSQL/dexsql.exe`（0.1.1）：`dexsql query --input x.apk --sql "..."` 查元数据，`dexsql tables` 看表结构，`dexsql decode --input x.apk --method 'Lcls;->m()V'` 直接出 smali |
 | 备用反编译器 | `java -jar <TOOLROOT>\java-decompiler\cfr-0.152.jar <jar> --outputdir src` |
 | manifest 速读 | `aapt2 dump badging x.apk` / `aapt2 dump xmltree x.apk --file AndroidManifest.xml` |
 | 判壳 | `apkid x.apk`（无 `--version` 参数） |
@@ -146,6 +147,8 @@ frida / objection / mitmproxy / r0capture 是**要连设备才能用的工具**�
 12. **改了 smali 但行为没变**：多半改了 `apktool\smali\` 而回编用的是另一份 smali 目录，或多 dex 未全部同步；核对 `apktool.yml` 里的 dex 数量，确认改动落在被编译的那份。
 13. **`adb devices` 有真机 ≠ 可以用**：真机属第二档，必须先在对话里告知卡点、等用户回复「开始」。
 14. **frida-server 推错架构**：真机是 arm64-v8a，别推 x86_64 那份，否则 `unable to connect` 或 `exec format error`。
+15. **dexsql 的列名不是直觉名**：`methods` 表里是 `name` / `class_descriptor` / `descriptor`，不是 `method_name` / `class_name`；调用图在 `method_calls` 表（`method_name` / `callee_name`）。写错列名会报 `unknown column`，先 `dexsql tables --input x.apk` 核对。
+16. **dexsql 不是反编译器**：它只出 SQL 结果和 smali，不出 Java。dex → Java 仍然只用 jadx，别指望 dexsql 替代它。
 
 # 工作区规范：一案一目录
 
@@ -212,13 +215,84 @@ pwsh <WORKSPACE>\new_case.ps1 -Apk <样本.apk> -Name <案名> -Mode crack
 - 无壳 → 直接 jadx。
 - 一代/二代壳（360、梆梆、爱加密、乐固、顶象）→ 先动态 dump 出真实 dex（需上真机，走第二档流程），再反编译 dump 产物。
 
-## 阶段 1：静态
-1. `jadx -d <out> --show-bad-code --no-res <apk>`，需要资源时去掉 `--no-res`。
-2. 定位顺序：Manifest 入口 → 主 Activity → 校验/登录/授权/加密相关类 → 关键字扫描。
-3. 关键字扫描模板（`rg -n -i`）：
-   `flag|check|verify|valid|sign|token|license|serial|activat|encrypt|decrypt|aes|des|rsa|md5|sha|base64|native|loadLibrary|System.load|reflect|Class.forName|assets/|\.so`
-4. 每个可疑点记：类全名、方法签名、反编译行号、原始 smali 对应位置。
-5. 混淆应对：jadx 里类名被改成 `p620ss` 这类前缀时，同时试原名（`com.ss.android...`）和重命名名（`com.p620ss.android...`）。
+## 阶段 1：静态（dexsql 定位 → jadx 精读）
+
+**分工原则**：dexsql 负责「在哪」，jadx 负责「是什么」。先 SQL 缩小范围到几个类，再读 Java，不要一上来就全文 `rg`。
+
+### 1.1 用 dexsql 摸全貌（不解包、毫秒级）
+
+```bash
+cd <TOOLROOT>/DexSQL
+dexsql.exe tables --input <apk>                                  # 有哪些表
+dexsql.exe query --input <apk> --sql "SELECT count(*) AS n FROM methods"
+dexsql.exe query --input <apk> --sql "SELECT descriptor FROM classes LIMIT 30"
+```
+
+### 1.2 按关键字定位目标方法
+
+```bash
+dexsql.exe query --input <apk> --sql "SELECT class_descriptor, name, descriptor FROM methods WHERE lower(name) LIKE '%check%' LIMIT 30"
+dexsql.exe query --input <apk> --sql "SELECT value FROM strings WHERE value LIKE '%license%' LIMIT 30"
+dexsql.exe query --input <apk> --sql "SELECT class_descriptor, name FROM methods WHERE access_flags & 256 != 0"   # native 方法
+```
+
+### 1.3 交叉引用追调用链（最省时间的一步）
+
+```bash
+# 谁调用了这个可疑方法
+dexsql.exe query --input <apk> --sql "SELECT method_class, method_name FROM method_calls WHERE callee_name = '<方法名>'"
+# 这个方法又调了谁
+dexsql.exe query --input <apk> --sql "SELECT callee_class, callee_name FROM method_calls WHERE method_name = '<方法名>' LIMIT 30"
+# 谁读写某个关键字段
+dexsql.exe query --input <apk> --sql "SELECT method_class, method_name FROM method_field_accesses WHERE field_name = '<字段名>'"
+```
+
+### 1.4 锁定目标后再 jadx 读源码
+
+```bash
+jadx -d sources --show-bad-code --no-res <apk>
+# 只读你定位到的那几个类
+```
+
+需要资源时去掉 `--no-res`。
+
+### 1.5 要看原始 smali 且不想解包
+
+```bash
+dexsql.exe decode --input <apk> --method 'Lcom/x/Y;->check()Z'
+dexsql.exe decode --input <apk> --class 'Lcom/x/Y;'
+```
+
+### 1.6 记录与混淆应对
+
+1. 每个可疑点记：类全名、方法签名、反编译行号、原始 smali 对应位置。
+2. 混淆应对：jadx 里类名被改成 `p620ss` 这类前缀时，同时试原名（`com.ss.android...`）和重命名名（`com.p620ss.android...`）。
+
+### 1.7 dexsql 常用表速查
+
+| 表 | 关键列 | 用途 |
+|---|---|---|
+| `classes` | `descriptor` / `superclass_descriptor` / `source_file` | 类清单、继承关系 |
+| `methods` | `class_descriptor` / `name` / `descriptor` / `access_flags` | 方法清单、按名搜、找 native |
+| `strings` | `value` | 字符串池，全量明文 |
+| `method_calls` | `method_class` / `method_name` / `callee_class` / `callee_name` | 调用图、交叉引用 |
+| `method_field_accesses` | 方法 ↔ 字段 | 找谁读写某个关键字段 |
+| `fields` | 字段清单 | 找 `isVip` 之类开关字段 |
+| `dex_files` | `entry_name` / `checksum` / `signature_hex` | 多 dex 定位、完整性值 |
+| `annotations` | 注解 | 找 `@JavascriptInterface` 之类 |
+
+### 1.8 dexsql 与 jadx 的分工
+
+| 场景 | 用哪个 |
+|---|---|
+| 第一次看一个包，快速摸清结构 | dexsql（几条 SQL 出全貌） |
+| 找「哪个类里有 checkToken」 | dexsql（毫秒级） |
+| 追「谁调用了这个方法」 | dexsql（`method_calls` 表） |
+| 读一个方法的完整逻辑 | jadx（可读的 Java） |
+| 看某方法的原始 smali | `dexsql decode` 或 apktool |
+| 改完要回编 | apktool |
+
+**dexsql 不做 Java 反编译**，只出 SQL 结果和 smali。dex → Java 仍然只用 jadx。
 
 ## 阶段 2：Native / SO
 1. 从 `apktool` 产物或 apk zip 里取 `lib/arm64-v8a/*.so`，放 `native\`。
@@ -320,6 +394,27 @@ python <TOOLROOT>/scripts/r0capture.py -U -f <pkg> -p cap.pcap
 | 签名 / 完整性 | `getPackageInfo` 的 signatures、hash 比对 | 短路检测函数，返回真值 |
 | so 内校验 | JNI 方法返回 boolean | patch so 返回值，或 hook 绕过 |
 | 开关型 | `SharedPreferences` / 静态字段 / 云端配置 | 写死为已解锁值 |
+
+**用 dexsql 批量捞校验点（比 rg 快，且能直接看调用关系）**
+
+```bash
+cd <TOOLROOT>/DexSQL
+
+# 所有疑似校验方法，一次捞全
+dexsql.exe query --input original.apk --sql "SELECT class_descriptor, name FROM methods WHERE lower(name) LIKE '%check%' OR lower(name) LIKE '%verify%' OR lower(name) LIKE '%valid%' OR lower(name) LIKE '%license%' OR lower(name) LIKE '%vip%' LIMIT 100"
+
+# 找签名/完整性相关（字符串池里搜）
+dexsql.exe query --input original.apk --sql "SELECT value FROM strings WHERE value LIKE '%signature%' OR value LIKE '%GET_SIGNATURES%' LIMIT 50"
+
+# 找反调试/反注入
+dexsql.exe query --input original.apk --sql "SELECT class_descriptor, name FROM methods WHERE lower(name) LIKE '%debug%' OR lower(name) LIKE '%inject%' OR lower(name) LIKE '%tamper%' OR lower(name) LIKE '%root%' LIMIT 50"
+
+# 谁调用了这些校验函数（决定改哪里最省）
+dexsql.exe query --input original.apk --sql "SELECT method_class, method_name, callee_name FROM method_calls WHERE callee_name LIKE '%check%' OR callee_name LIKE '%verify%' LIMIT 100"
+
+# 找 VIP/开关字段，直接定位要写死的字段
+dexsql.exe query --input original.apk --sql "SELECT class_descriptor, name, descriptor FROM fields WHERE lower(name) LIKE '%vip%' OR lower(name) LIKE '%premium%' OR lower(name) LIKE '%pro%' LIMIT 50"
+```
 
 产出：`patch\targets.md` 里一张表，每行写「类全名#方法签名 / 触发时机 / 判定类型 / 改法 / 状态」。
 

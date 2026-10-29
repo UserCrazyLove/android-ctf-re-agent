@@ -1,5 +1,26 @@
 # CHANGELOG
 
+## [1.1.0] — 2026-10-29
+
+### 新增
+
+- **DexSQL 工作流**（`<TOOLROOT>/DexSQL/dexsql.exe`，0.1.1）：用 SQL 直查 apk/dex 的类、方法、字符串、字段、调用图，配合 jadx 形成「先定位再精读」的节奏
+  - 阶段 1 静态分析重写为 8 小节：摸全貌 → 关键字定位 → 交叉引用追调用链 → jadx 精读 → 原始 smali → 混淆应对 → 表结构速查 → 分工表
+  - C1 校验点清剿加 5 条批量查询（校验方法、签名完整性、反调试、调用关系、开关字段）
+  - 已知坑新增 2 条：列名不是直觉名（`name` 而非 `method_name`）、dexsql 不做 Java 反编译
+  - 精简版同步加入 dexsql 一行工作流
+- `docs/setup-toolchain.md`：DexSQL 安装与验证小节 + PATH + 自检命令 + 版本表
+- `docs/anti-tamper-checklist.md`：常用搜索命令改为「dexsql 首选 + rg 精查」两段
+- `docs/crackme-playbook.md`：1.1 找功能开关改为 dexsql 起步；新增「定位工具的选择」对照表
+- `docs/faq.md`：新增 DexSQL 专节（能力边界、列名坑、与 jadx 分工、缓存提速）
+- `GETTING-STARTED.zh-CN.md` / `GETTING-STARTED.md`：安装步骤加入 DexSQL
+- `examples/README.md`：第 4 步改为「先 dexsql 定位再解包」
+- `requirements.md`：依赖表加入 DexSQL
+
+### 定位
+
+DexSQL 是检索与反汇编工具，**不是反编译器**。`dex → Java` 仍然只用 jadx；`dex → smali` 可用 `dexsql decode` 或 apktool。
+
 ## [1.0.0] — 2026-10-24
 
 首个公开版本。

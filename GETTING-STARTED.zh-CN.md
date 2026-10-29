@@ -244,6 +244,24 @@ unzip jadx-1.5.6.zip -d <TOOLROOT>/jadx-1.5.6
 
 > 项目明确要求只使用 CLI，不要用 jadx-gui —— 提示词里写死了这一条。
 
+#### DexSQL（SQL 直查 dex，定位首选）
+
+```bash
+# https://github.com/LSPosed/dexsql-release/releases
+# 下载 dexsql-windows-amd64.exe（或对应平台），重命名 dexsql.exe
+mkdir -p <TOOLROOT>/DexSQL
+# 放进去，LICENSE / SHA256SUMS 一起带上
+```
+
+**验证：**
+
+```bash
+<TOOLROOT>/DexSQL/dexsql.exe --version                              # dexsql 0.1.1
+<TOOLROOT>/DexSQL/dexsql.exe query --input app.apk --sql "SELECT count(*) FROM methods"
+```
+
+> 它只做 SQL 查询和 smali 反汇编，**不做 Java 反编译**。dex → Java 还是 jadx。
+
 #### dex-tools
 
 ```bash
@@ -579,6 +597,7 @@ bushi
 | `.ps1` 带中文报 `UnexpectedToken` | PowerShell 5.1 按 ANSI 读 UTF-8。脚本正文写纯 ASCII |
 | GitHub 下载 74 KB/s | 套 `https://gh-proxy.com/<原始链接>` |
 | 改了 smali 但行为没变 | 改的不是被编译的那份 smali 目录，或多 dex 没同步 |
+| dexsql 报 `unknown column` | 列名不是直觉名：`methods` 用 `name`/`class_descriptor`/`descriptor`；调用图在 `method_calls`。先 `dexsql tables` 核对 |
 | 重签后闪退白屏 | 反篡改。按提示词「阶段 C2 加载失败回查顺序」八步走 |
 
 更多见 [`docs/faq.md`](docs/faq.md)。

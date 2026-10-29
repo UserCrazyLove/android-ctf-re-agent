@@ -5,6 +5,7 @@ An **operating spec for AI coding agents** that do Android reverse engineering a
 - **Works with**: any long-context agent that can run shell commands (Claude Code, Codex CLI, OpenCode, Cursor, Hermes, etc.)
 - **Targets**: APK / DEX / SO / packed samples in a self-hosted lab
 - **Two modes**: analysis (`bushi`) and CrackMe cracking (`nima`)
+- **Locate first**: built-in DexSQL workflow — SQL-query the dex to pin down target classes in milliseconds, then read them in jadx instead of grepping everything
 
 **简体中文**：[README.md](README.md) · Setup guide: [GETTING-STARTED.zh-CN.md](GETTING-STARTED.zh-CN.md)
 

@@ -242,6 +242,24 @@ unzip jadx-1.5.6.zip -d <TOOLROOT>/jadx-1.5.6
 
 > 项目明确要求只使用 CLI，不要用 jadx-gui —— 提示词里写死了这一条。
 
+#### DexSQL (SQL queries over dex — fastest way to locate targets)
+
+```bash
+# https://github.com/LSPosed/dexsql-release/releases
+# download dexsql-windows-amd64.exe (or your platform binary), rename to dexsql.exe
+mkdir -p <TOOLROOT>/DexSQL
+# place it there, keep LICENSE / SHA256SUMS alongside
+```
+
+**Verify:**
+
+```bash
+<TOOLROOT>/DexSQL/dexsql.exe --version                              # dexsql 0.1.1
+<TOOLROOT>/DexSQL/dexsql.exe query --input app.apk --sql "SELECT count(*) FROM methods"
+```
+
+> It only does SQL queries and smali disassembly — **no Java decompilation**. Use jadx for dex → Java.
+
 #### dex-tools
 
 ```bash

@@ -69,6 +69,60 @@ PowerShell 5.1 按 ANSI 读 UTF-8 文件，中文注释会破坏解析。
 
 ---
 
+## 一·五、DexSQL
+
+### Q: dexsql 能反编译 apk 吗
+
+不能。它只做两件事：
+
+- `dexsql query` —— SQL 查元数据（类、方法、字符串、调用图）
+- `dexsql decode` —— 把方法/类反汇编成 **smali**
+
+**dex → Java 仍然只用 jadx。** dexsql 是"检索 + 反汇编"，不是反编译器。
+
+---
+
+### Q: dexsql 报 `unknown column`
+
+列名不是直觉名。常见对应：
+
+| 你以为 | 实际 |
+|---|---|
+| `method_name`（在 methods 表） | `name` |
+| `class_name` | `class_descriptor` |
+| `method_descriptor` | `descriptor` |
+
+调用关系不在 `methods` 表，在 `method_calls` 表（那里的列才叫 `method_name` / `callee_name`）。
+
+**排查**：`dexsql.exe tables --input app.apk` 打印全部表结构和列名。
+
+---
+
+### Q: dexsql 和 jadx 怎么分工
+
+| 场景 | 工具 |
+|---|---|
+| 找"哪个类里有 checkVip" | dexsql |
+| 追"谁调用了 isVip" | dexsql（`method_calls`） |
+| 读方法的完整逻辑 | jadx |
+| 看原始 smali | dexsql `decode` 或 apktool |
+| 回编 | apktool |
+
+一句话：**dexsql 负责「在哪」，jadx 负责「是什么」。**
+
+---
+
+### Q: 大包查询慢
+
+第一次查会解析整个包。反复查同一个包时先建缓存：
+
+```bash
+dexsql.exe prepare-cache --input app.apk --output app-cache
+dexsql.exe query-cache --cache-file app-cache/cache.dxc2 --sql "SELECT count(*) FROM methods"
+```
+
+---
+
 ## 二、解包与反编译
 
 ### Q: `jadx -d` 输出一堆 `// error`

@@ -12,7 +12,7 @@
 |---|---|---|
 | 运行时 | JDK 21、JDK 8、Python 3.10+ venv | 是 |
 | 解包反编译 | apktool、jadx CLI、dex-tools、CFR | 是 |
-| 静态分析 | apkid、apkInspector、androguard、rabin2、Ghidra | 是 |
+| 静态分析 | apkid、apkInspector、androguard、**DexSQL**、rabin2、Ghidra | 是 |
 | 二进制处理 | radare2、LIEF、capstone、pyelftools | 是 |
 | 签名 | apksigner、zipalign、keytool、uber-apk-signer | 是 |
 | 无设备执行 | unidbg | 是 |
@@ -109,6 +109,28 @@ unzip dex-tools-2.4.zip -d <TOOLROOT>/dex-tools
 ```
 
 Windows 下对应 `.bat`。注意：**没有独立的 `baksmali` / `smali` 命令**，前缀是 `d2j-`。
+
+### DexSQL（SQL 直查 dex，定位首选）
+
+```bash
+# https://github.com/LSPosed/dexsql-release/releases
+# 下载 dexsql-windows-amd64.exe（或对应平台），重命名为 dexsql.exe
+mkdir -p <TOOLROOT>/DexSQL
+# 放到 <TOOLROOT>/DexSQL/dexsql.exe，顺手把 LICENSE / SHA256SUMS 一起放进去
+```
+
+**验证：**
+
+```bash
+<TOOLROOT>/DexSQL/dexsql.exe --version      # 期望 dexsql 0.1.1
+<TOOLROOT>/DexSQL/dexsql.exe query --input app.apk --sql "SELECT count(*) FROM methods"
+```
+
+**能力边界**：只做 SQL 查询和 smali 反汇编，**不做 Java 反编译**。dex → Java 仍然用 jadx。
+
+**列名坑**：`methods` 表里是 `name` / `class_descriptor` / `descriptor`，不是 `method_name` / `class_name`；调用图在 `method_calls`（`method_name` / `callee_name`）。写错会报 `unknown column`，先 `dexsql tables --input x.apk` 核对。
+
+常用查询见 [crackme-playbook.md](crackme-playbook.md) 和 [anti-tamper-checklist.md](anti-tamper-checklist.md)。
 
 ### CFR（jadx 失败时兜底）
 
@@ -323,6 +345,7 @@ aapt2 version
 <TOOLROOT>/scripts
 <TOOLROOT>/signer
 <TOOLROOT>/java-decompiler
+<TOOLROOT>/DexSQL
 <TOOLROOT>/radare2/radare2-*-w64/bin
 <TOOLROOT>/ghidra/ghidra_*/support
 <TOOLROOT>/jdk21/*/bin
@@ -333,7 +356,7 @@ aapt2 version
 ### 一键自检
 
 ```bash
-for c in java javac python pip apktool jadx apkid apkInspector r2 rabin2 \
+for c in java javac python pip apktool jadx apkid apkInspector dexsql r2 rabin2 \
          frida objection frida-dexdump mitmdump keytool adb aapt2 apksigner zipalign; do
   if command -v "$c" >/dev/null 2>&1; then
     printf '%-16s OK   %s\n' "$c" "$(command -v "$c")"
@@ -365,6 +388,7 @@ foreach ($c in 'java','python','apktool','jadx','apkid','r2','frida','objection'
 | Python | 3.13 |
 | apktool | 3.0.3 |
 | jadx | 1.5.6 |
+| DexSQL | 0.1.1 |
 | dex-tools | 2.4.x |
 | CFR | 0.152 |
 | frida / frida-tools / frida-server | 17.24.3 / 14.11.0 / **17.24.3（三者一致）** |

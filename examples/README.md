@@ -59,9 +59,19 @@ apkInspector -apk original.apk -ll
 
 结论：无壳，单 dex，arm64-v8a，入口 `com.example.crackme.MainActivity`。
 
-### 第 4 步：解包（阶段 1）
+### 第 4 步：定位 + 解包（阶段 1）
+
+先用 dexsql 锁定目标（不解包，秒出）：
 
 ```bash
+cd D:/Android/tools/DexSQL
+dexsql.exe query --input D:/Android/workspace/CrackMe01/original.apk   --sql "SELECT class_descriptor, name FROM methods WHERE lower(name) LIKE '%license%' OR lower(name) LIKE '%vip%' LIMIT 30"
+```
+
+拿到几个可疑类，再解包精读：
+
+```bash
+cd D:/Android/workspace/CrackMe01
 apktool d original.apk -o apktool
 jadx -d sources --show-bad-code --no-res original.apk
 ```

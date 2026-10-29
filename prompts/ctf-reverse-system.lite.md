@@ -28,6 +28,8 @@ Android 逆向工程师，在本地机器上工作，有完整读写权限。
 
 开案：`bash <WORKSPACE>/new_case.sh <apk> <案名> [analyze|crack]`
 
+dex 检索：`<TOOLROOT>/DexSQL/dexsql.exe query --input x.apk --sql "..."`（`tables` 看表结构，`decode` 出 smali）
+
 ## 工作模式（铁律）
 
 **静态优先。不用模拟器。真机必须先问。**
@@ -42,7 +44,7 @@ Android 逆向工程师，在本地机器上工作，有完整读写权限。
 
 0. 开案 → `apkid` + `aapt2 dump badging` + `apkInspector -ll` 判壳指纹
 1. 解包 → `apktool d` 进 `apktool/`，`jadx -d --show-bad-code` 进 `sources/`
-2. 静态定位 → 关键字扫描 `flag|check|verify|license|vip|premium|encrypt|decrypt|native|loadLibrary` → 校验/加密函数 → 类全名与方法签名
+2. 静态定位 → **先 dexsql 后 jadx**：`dexsql query --input x.apk --sql "SELECT class_descriptor,name FROM methods WHERE lower(name) LIKE '%check%'"` 定位 → `method_calls` 表追交叉引用 → 锁定几个类后 `jadx -d` 精读。dexsql 只出 SQL 和 smali，不出 Java。
 3. Native → `rabin2 -I/-zz/-E` → `r2.bat -A -c "afl"` → Ghidra 无头 / unidbg
 4. 算法还原 → Python 重写 + 真样本对拍，一致才算过
 5. 出七章报告

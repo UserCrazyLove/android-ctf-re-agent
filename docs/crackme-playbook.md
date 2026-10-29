@@ -23,9 +23,29 @@
 
 不要一上来就搜 `isVip`。按这个顺序：
 
-1. **UI 层找入口**：付费功能的按钮/菜单项，看它的 `android:onClick` 或 `setOnClickListener` 绑到哪个方法
-2. **往上追调用链**：点击 → 检查 → 弹窗 or 执行
-3. **找那个决定分支的变量**：通常是 `boolean`、`int` 等级、`String` 会员类型
+1. **dexsql 捞出所有疑似开关**（一条 SQL 秒出）：
+
+```bash
+cd <TOOLROOT>/DexSQL
+# 疑似校验方法
+dexsql.exe query --input app.apk --sql "SELECT class_descriptor, name, descriptor FROM methods WHERE lower(name) LIKE '%vip%' OR lower(name) LIKE '%premium%' OR lower(name) LIKE '%check%' OR lower(name) LIKE '%valid%' LIMIT 80"
+# 疑似开关字段
+dexsql.exe query --input app.apk --sql "SELECT class_descriptor, name, descriptor FROM fields WHERE lower(name) LIKE '%vip%' OR lower(name) LIKE '%premium%' OR lower(name) LIKE '%pro%' OR lower(name) LIKE '%paid%' LIMIT 80"
+# 字符串池里的会员文案
+dexsql.exe query --input app.apk --sql "SELECT value FROM strings WHERE value LIKE '%VIP%' OR value LIKE '%会员%' OR value LIKE '%开通%' LIMIT 50"
+```
+
+2. **追调用链**（dexsql 的 `method_calls` 表）：
+
+```bash
+# 谁调用了某个开关方法
+dexsql.exe query --input app.apk --sql "SELECT method_class, method_name FROM method_calls WHERE callee_name = 'isVip'"
+# 某个方法调了谁（往下追到实际执行）
+dexsql.exe query --input app.apk --sql "SELECT callee_class, callee_name FROM method_calls WHERE method_name = 'onVipClick' LIMIT 30"
+```
+
+3. **UI 层确认入口**：jadx 打开那个 Activity，看 `android:onClick` 或 `setOnClickListener` 绑到哪个方法
+4. **找那个决定分支的变量**：通常是 `boolean`、`int` 等级、`String` 会员类型
 
 ```java
 // 典型形态
@@ -287,7 +307,21 @@ apksigner verify --print-certs build/<案名>-cracked.apk
 
 ---
 
-## 七、一条原则
+## 七、定位工具的选择
+
+| 目的 | 工具 | 原因 |
+|---|---|---|
+| 找「哪个类里有 checkVip」 | `dexsql query` | 毫秒级，不用解包 |
+| 追「谁调用了 isVip」 | `dexsql` 的 `method_calls` 表 | 直接出调用图，比 rg 准 |
+| 看「某个方法完整逻辑」 | `jadx` | 出可读 Java |
+| 看「某个方法原始指令」 | `dexsql decode` 或 apktool | 出 smali |
+| 改「smali 后回编」 | apktool | 唯一能回编的 |
+
+**dexsql 不做 Java 反编译**，它出 SQL 结果和 smali。别指望它替代 jadx。
+
+---
+
+## 八、一条原则
 
 **最小改动**。
 
